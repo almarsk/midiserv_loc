@@ -1,0 +1,42 @@
+import "./ChivoMono-VariableFont_wght.ttf";
+import { Button } from "std-widgets.slint";
+import { MenuItem } from "./components/menu-item.slint";
+import { Switch, Status } from "./components/indicators.slint";
+import { SingleForm, TripleForm } from "./components/forms.slint";
+
+export component AppWindow inherits Window {
+    title: "midiserv";
+    in-out property <brush> bgc: grey;
+    background: root.bgc;
+    default-font-family: "Chivo Mono";
+    default-font-size: 25px;
+    preferred-width: 800px;
+    preferred-height: 400px;
+    callback go-to-main();
+
+    VerticalLayout {
+        alignment: start;
+        padding: 30px;
+        Text {
+            text: "midiserv";
+            font-size: 50px;
+            color:black;
+        }
+        VerticalLayout {
+            padding-top: 30px;
+            spacing: 10px;
+
+            MenuItem{text: "connection status"; Status{}}
+            MenuItem{text: "passthrough allowed"; Switch{}}
+            MenuItem{text: "send dummy cc"; SingleForm{}}
+            MenuItem{text: "expose device"; TripleForm{}}
+
+            Button {
+                text: "connect";
+                clicked => {
+                    root.go-to-main();
+                }
+            }
+        }
+    }
+}

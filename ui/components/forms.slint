@@ -1,0 +1,43 @@
+import { LineEdit, Button } from "std-widgets.slint";
+
+component TInput inherits LineEdit {
+    width: 100px;
+    placeholder-text: "cc#";
+    font-size: 20px;
+}
+
+component Submit inherits Button {
+    in-out property <string> txt;
+    callback click();
+    text: txt;
+    clicked => { click(); }
+
+}
+
+export component SingleForm inherits VerticalLayout {
+    alignment: center;
+    HorizontalLayout {
+        tinput := TInput{}
+        Submit{
+            text: "send";
+            click => { tinput.clear-focus() }
+        }
+    }
+}
+
+export component TripleForm inherits VerticalLayout {
+    alignment: center;
+    HorizontalLayout {
+        tinput1 := TInput{}
+        tinput2 := TInput{}
+        tinput3 := TInput{}
+        Submit{
+            text: "send";
+            click => {
+                tinput1.clear-focus();
+                tinput2.clear-focus();
+                tinput3.clear-focus();
+            }
+        }
+    }
+}
