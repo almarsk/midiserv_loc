@@ -3,11 +3,11 @@ import { Button } from "std-widgets.slint";
 component Indicator inherits HorizontalLayout {
     in-out property <bool> isOn: false;
     Rectangle {
-        border-radius: 20px;
+        border-radius: 10px;
         border-color: black;
-        border-width: 4px;
-        background: isOn ? green : red;
-        width: 100px;
+        border-width: 2px;
+        background: isOn ? rgb(167,227,164) : rgb(248,168,168);
+        preferred-width: 50px;
 
         VerticalLayout {
             alignment: center;
@@ -23,14 +23,14 @@ export component Switch inherits Rectangle {
         TouchArea {
             HorizontalLayout {
                 alignment: isOn ? start : end;
-                padding-left: 20px;
-                padding-right: 20px;
+                padding-left: 10px;
+                padding-right: 10px;
 
                 Rectangle {
-                    border-radius: 8px;
+                    border-radius: 10px;
                     background: black;
-                    width: 16px;
-                    height: 16px;
+                    preferred-width: 10px;
+                    preferred-height: 10px;
                 }
 
             }
@@ -49,6 +49,7 @@ export component Status inherits Rectangle {
             HorizontalLayout {
                 alignment: center;
                 Text {
+                    color: black;
                     text: "bruh";
                 }
             }

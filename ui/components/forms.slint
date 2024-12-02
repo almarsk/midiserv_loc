@@ -1,43 +1,64 @@
 import { LineEdit, Button } from "std-widgets.slint";
 
 component TInput inherits LineEdit {
-    width: 100px;
-    placeholder-text: "cc#";
-    font-size: 20px;
+    in property <string> placeholder: "cc#";
+
+    width: 60px;
+    placeholder-text: root.placeholder;
+    font-size: 12px;
 }
 
-component Submit inherits Button {
-    in-out property <string> txt;
-    callback click();
-    text: txt;
-    clicked => { click(); }
-
-}
-
-export component SingleForm inherits VerticalLayout {
-    alignment: center;
-    HorizontalLayout {
-        tinput := TInput{}
-        Submit{
-            text: "send";
-            click => { tinput.clear-focus() }
+export component Submit inherits TouchArea {
+    in-out property <string> text;
+    in-out property <brush> background: rgb(164, 164, 164);
+    callback on-clicked();
+    Rectangle {
+        border-radius: 10px;
+        border-color: black;
+        border-width: 2px;
+        background: root.pressed ? root.background.darker(20%) : root.background;
+        HorizontalLayout {
+            padding: 10px;
+            Text {
+                vertical-alignment: center;
+                horizontal-alignment: center;
+                color: black;
+                text: root.text;
+            }
         }
+    }
+    clicked => { on-clicked(); }
+}
+
+export component SingleForm inherits HorizontalLayout {
+    spacing: 5px;
+    tinput := TInput{}
+    Submit {
+        text: "send";
+        on-clicked => { tinput.clear-focus() }
     }
 }
 
-export component TripleForm inherits VerticalLayout {
-    alignment: center;
-    HorizontalLayout {
-        tinput1 := TInput{}
-        tinput2 := TInput{}
-        tinput3 := TInput{}
-        Submit{
-            text: "send";
-            click => {
-                tinput1.clear-focus();
-                tinput2.clear-focus();
-                tinput3.clear-focus();
-            }
+export component TripleForm inherits HorizontalLayout {
+    in property <[string]> placeholders;
+    in-out property <string> tinput1_text: "";
+    in-out property <string> tinput2_text: "";
+    in-out property <string> tinput3_text: "";
+
+    callback on-clicked(string, string, string);
+
+    spacing: 5px;
+    tinput1 := TInput{placeholder: placeholders[0]; text: tinput1_text; edited(string) => {tinput1_text = string}}
+    tinput2 := TInput{placeholder: placeholders[1]; text: tinput2_text; edited(string) => {tinput2_text = string}}
+    tinput3 := TInput{placeholder: placeholders[2]; text: tinput3_text; edited(string) => {tinput3_text = string}}
+    Submit {
+        text: "send";
+        on-clicked => {
+            tinput1.clear-focus();
+            tinput2.clear-focus();
+            tinput3.clear-focus();
+            on-clicked(tinput1_text, tinput2_text, tinput3_text);
+
         }
     }
 }
