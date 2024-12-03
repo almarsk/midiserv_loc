@@ -2,15 +2,16 @@ import "./ChivoMono-VariableFont_wght.ttf";
 import { Button, ComboBox } from "std-widgets.slint";
 import { MenuItem } from "./components/menu-item.slint";
 import { Switch, Status } from "./components/indicators.slint";
-import { SingleForm, TripleForm, Submit } from "./components/forms.slint";
+import { SingleForm, TripleForm, Submit, PathSelector } from "./components/forms.slint";
 import { ListView } from "std-widgets.slint";
 
 export global AppState {
     callback hide_device(string);
     callback expose_device(string, string, string);
-    callback choose_midi_port();
+    callback choose_midi_port(string);
+    callback send_dummy_cc(string);
+    callback clear_all();
     in property <[string]> midi-ports;
-
 }
 
 export component AppWindow inherits Window {
@@ -21,12 +22,13 @@ export component AppWindow inherits Window {
     background: root.bgc;
     min-height: 450px;
     min-width: 500px;
+    preferred-width: 500px;
     default-font-family: "Chivo Mono";
     default-font-size: 12px;
 
     VerticalLayout {
         alignment: start;
-        padding: 20px;
+        padding: 10px;
         Text {
             text: "midiserv";
             font-size: 30px;
@@ -38,35 +40,44 @@ export component AppWindow inherits Window {
 
             MenuItem{text: "connection status"; Status{}}
             MenuItem{text: "passthrough allowed"; Switch{}}
-            MenuItem{text: "send dummy cc"; SingleForm{}}
             MenuItem{
+                text: "send dummy cc";
+                SingleForm {
+                    on-clicked(cc) => {AppState.send_dummy_cc(cc)
+                    }
+                }
+            }
+            MenuItem{
+                width: parent.width;
                 text: "select midi port";
-                VerticalLayout{
-                        alignment: center;
-                        HorizontalLayout {
-                            ComboBox {
-                                model: AppState.midi-ports;
-                            }
-                        }
+                ComboBox {
+                    min-width: parent.width - 225px;
+                    model: AppState.midi-ports;
+                    selected(port) => {AppState.choose_midi_port(port)}
+                    current-value: "";
                 }
             }
             MenuItem{
                 text: "expose device";
-                tf := TripleForm{
+                TripleForm{
                 placeholders: ["cc#","type","desc"];
-                on-clicked =>
-                    {AppState.expose_device(tf.tinput1_text, tf.tinput2_text, tf.tinput3_text)}
+                on-clicked(t1,t2,t3) =>
+                    {AppState.expose_device(t1, t2, t3)}
                 }
             }
 
             currently-exposed := VerticalLayout {
                 MenuItem {text: "currently exposed"; Rectangle{} }
-                ListView {
-                    width: root.width/2;
-                    for device in exposed_devices :
-                    Submit {
-                        text: device;
-                        on-clicked => { AppState.hide_device(device) }
+                HorizontalLayout {
+                    alignment: center;
+                    ListView {
+                        height: root.height - 360px;
+                        width: root.width/2;
+                        for device in exposed_devices :
+                        Submit {
+                            text: device;
+                            on-clicked => { AppState.hide_device(device) }
+                        }
                     }
                 }
             }
@@ -74,13 +85,13 @@ export component AppWindow inherits Window {
     }
     VerticalLayout {
     alignment: end;
-    padding: 20px;
+    padding: 10px;
         HorizontalLayout {
             padding-top: 20px;
             spacing: 5px;
             Submit{text: "save file";}
             Submit{text: "load file";}
-            Submit{text: "clear all"; background: rgb(248,168,168);}
+            Submit{text: "clear all"; background: rgb(248,168,168); on-clicked => {AppState.clear_all()}}
             Submit{text: "disconnect"; background: rgb(248,168,168);}
         }
     }

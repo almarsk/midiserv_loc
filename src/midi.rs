@@ -1,23 +1,41 @@
+use midir::MidiOutput;
 use std::{collections::HashMap, error::Error};
 
-use midir::MidiOutput;
+// https://github.com/Boddlnagg/midir/blob/master/examples/test_play.rs
 
-pub fn get_ports() -> Result<HashMap<String, String>, Box<dyn Error>> {
-    let midi_out = MidiOutput::new("midiserve")?;
+pub struct Midi {
+    out: MidiOutput,
+}
 
-    let out_ports = midi_out.ports();
+impl Midi {
+    pub fn new() -> Result<Self, ()> {
+        let midi_out = MidiOutput::new("midiserve");
+
+        if let Ok(m) = midi_out {
+            Ok(Midi { out: m })
+        } else {
+            Err(())
+        }
+    }
+}
+
+pub fn get_ports(m: &Midi) -> Result<HashMap<String, String>, Box<dyn Error>> {
+    let out_ports = m.out.ports();
 
     let mut ports = HashMap::new();
 
     out_ports.clone().into_iter().for_each(|port| {
-        ports.insert(port.id(), midi_out.port_name(&out_ports[0]).unwrap());
+        ports.insert(port.id(), m.out.port_name(&out_ports[0]).unwrap());
     });
 
     Ok(ports)
 }
 
+pub fn update_port(m: Midi, out_port: String) {
+    //let mut conn_out = m.out.connect(out_port, "midir-test")?;
+}
+
 /*
-    let mut conn_out = midi_out.connect(out_port, "midir-test")?;
     println!("Connection open. Listen!");
     {
         // Define a new scope in which the closure `play_note` borrows conn_out, so it can be called easily
