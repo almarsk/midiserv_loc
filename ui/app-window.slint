@@ -89,8 +89,8 @@ export component AppWindow inherits Window {
         HorizontalLayout {
             padding-top: 20px;
             spacing: 5px;
-            Submit{text: "save file";}
             Submit{text: "load file";}
+            Submit{text: "save file";}
             Submit{text: "clear all"; background: rgb(248,168,168); on-clicked => {AppState.clear_all()}}
             Submit{text: "disconnect"; background: rgb(248,168,168);}
         }

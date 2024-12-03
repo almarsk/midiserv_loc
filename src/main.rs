@@ -2,13 +2,21 @@
 
 mod midi;
 
+use anyhow::Result;
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::cell::RefCell;
-use std::{error::Error, rc::Rc};
+use std::error::Error;
+use std::rc::Rc;
+use tokio::sync::mpsc;
+
 slint::include_modules!();
 
 fn main() -> Result<(), Box<dyn Error>> {
     let app = AppWindow::new()?;
+
+    // todo tokio refactor
+    let _rt = tokio::runtime::Runtime::new().unwrap();
+    let (_tx, mut _rx) = mpsc::channel::<String>(32);
 
     let midi = if let Ok(m) = midi::Midi::new() {
         m
@@ -19,11 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         )));
     };
 
-    let exposed_devices = Rc::new(VecModel::from(vec![]));
-    app.set_exposed_devices(ModelRc::from(Rc::clone(&exposed_devices)));
-
-    let ports_res = midi::get_ports(&midi);
-    if let Ok(ports) = ports_res {
+    if let Ok(ports) = midi.get_ports() {
         let current_port = Rc::new(RefCell::new(String::new()));
         let current_port_clone = Rc::clone(&current_port);
         app.global::<AppState>().on_choose_midi_port(move |port| {
@@ -36,6 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .collect::<VecModel<_>>(),
         );
         p.insert(0, SharedString::from(""));
+
         app.global::<AppState>()
             .set_midi_ports(ModelRc::from(Rc::clone(&p)));
 
@@ -49,6 +54,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 );
             })
     }
+
+    let exposed_devices = Rc::new(VecModel::from(vec![]));
+    app.set_exposed_devices(ModelRc::from(Rc::clone(&exposed_devices)));
 
     let exposed_devices_clone = Rc::clone(&exposed_devices);
     app.global::<AppState>()
