@@ -2,7 +2,7 @@ import "./ChivoMono-VariableFont_wght.ttf";
 import { Button, ComboBox } from "std-widgets.slint";
 import { MenuItem } from "./components/menu-item.slint";
 import { Switch, Status } from "./components/indicators.slint";
-import { SingleForm, TripleForm, Submit } from "./components/forms.slint";
+import { SingleForm, ExposeForm, Submit } from "./components/forms.slint";
 import { ListView } from "std-widgets.slint";
 
 struct Port { name: string, id: string }
@@ -12,6 +12,7 @@ export global AppState {
     callback expose_device(string, string, string);
     callback choose_midi_port(int);
     callback send_dummy_cc(string);
+    callback copy_to_clipboard();
     callback clear_all();
     in property <[string]> midi-ports;
 }
@@ -52,7 +53,7 @@ export component AppWindow inherits Window {
                 width: parent.width;
                 text: "select midi port";
                 port-selector := ComboBox {
-                    min-width: parent.width - 225px;
+                    min-width: parent.width - 210px;
                     model: AppState.midi-ports;
                     selected => {AppState.choose_midi_port(port-selector.current_index)}
                     current-value: "";
@@ -60,7 +61,7 @@ export component AppWindow inherits Window {
             }
             MenuItem{
                 text: "expose device";
-                TripleForm{
+                ExposeForm{
                 placeholders: ["cc#","type","desc"];
                 on-clicked(t1,t2,t3) =>
                     {AppState.expose_device(t1, t2, t3)}
@@ -74,11 +75,11 @@ export component AppWindow inherits Window {
                     ListView {
                         height: root.height - 360px;
                         width: root.width/2;
-                        for device in exposed_devices :
-                        Submit {
-                            text: device;
-                            on-clicked => { AppState.hide_device(device) }
-                        }
+                        for device[index] in exposed_devices :
+                            Submit {
+                                text: device;
+                                on-clicked => { AppState.hide_device(index) }
+                            }
                     }
                 }
             }
@@ -91,7 +92,7 @@ export component AppWindow inherits Window {
             padding-top: 20px;
             spacing: 5px;
             Submit{text: "load file";}
-            Submit{text: "save file";}
+            Submit{text: "copy exposed"; on-clicked => {AppState.copy_to_clipboard()}}
             Submit{text: "clear all"; background: rgb(248,168,168); on-clicked => {AppState.clear_all()}}
             Submit{text: "disconnect"; background: rgb(248,168,168);}
         }

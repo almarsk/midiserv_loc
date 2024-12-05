@@ -1,4 +1,4 @@
-import { LineEdit, Button } from "std-widgets.slint";
+import { LineEdit, Button, ComboBox } from "std-widgets.slint";
 
 component TInput inherits LineEdit {
     in property <string> placeholder: "cc#";
@@ -42,22 +42,25 @@ export component SingleForm inherits HorizontalLayout {
     }
 }
 
-export component TripleForm inherits HorizontalLayout {
+export component ExposeForm inherits HorizontalLayout {
     in property <[string]> placeholders;
     callback on-clicked(string, string, string);
 
     spacing: 5px;
-    tinput1 := TInput{placeholder: placeholders[0];}
-    tinput2 := TInput{placeholder: placeholders[1];}
-    tinput3 := TInput{placeholder: placeholders[2];}
+    cc := TInput{placeholder: placeholders[0];}
+    type := ComboBox {
+                width: 90px;
+                model: ["empty"];
+                current-value: "empty";
+    }
+    desc := TInput{placeholder: placeholders[2];}
     Submit {
         text: "send";
         on-clicked => {
-            tinput1.clear-focus();
-            tinput2.clear-focus();
-            tinput3.clear-focus();
-            on-clicked(tinput1.text, tinput2.text, tinput3.text);
-
+            cc.clear-focus();
+            type.clear-focus();
+            desc.clear-focus();
+            on-clicked(cc.text, type.current-value, desc.text);
         }
     }
 }

@@ -4,23 +4,42 @@ use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 
 const CC_MESSAGE: u8 = 0xB0;
 
-type Ports = Vec<(String, String, MidiOutputPort)>;
-
 pub struct Midi {
     conn: Option<MidiOutputConnection>,
-    ports: Ports,
+    ports: Vec<Port>,
+}
+
+pub enum MidiCommand {
+    Dummy(u8),
+    Port(usize),
+}
+
+struct Port {
+    id: String,
+    name: String,
+    port: MidiOutputPort,
+}
+
+impl Port {
+    fn new(id: String, name: String, port: MidiOutputPort) -> Self {
+        Port { id, name, port }
+    }
 }
 
 impl Midi {
     pub fn new() -> Self {
-        let ports = if let Ok(m) = MidiOutput::new("midiserve") {
-            m.ports()
-                .into_iter()
-                .map(|p| (p.id().clone(), m.port_name(&p).unwrap_or("".to_string()), p))
-                .collect()
-        } else {
-            vec![]
-        };
+        let midi_output = MidiOutput::new("midiserve").unwrap();
+        let ports = midi_output
+            .ports()
+            .into_iter()
+            .map(|p| {
+                Port::new(
+                    p.id().clone(),
+                    midi_output.port_name(&p).unwrap_or("".to_string()),
+                    p,
+                )
+            })
+            .collect();
 
         Midi { conn: None, ports }
     }
@@ -28,17 +47,18 @@ impl Midi {
     pub fn get_ports(&mut self) -> Vec<String> {
         self.ports
             .iter()
-            .map(|p| format!("{}|{}", p.0.clone(), p.1.clone()))
+            .map(|p| format!("{}|{}", p.id.clone(), p.name.clone()))
             .collect()
     }
 
     pub fn update_port(&mut self, out_port: usize) {
-        if let Ok(m) = MidiOutput::new("midiserve") {
-            if let Some(mp) = self.ports.get(out_port) {
-                if let Ok(conn_out) = m.connect(&mp.2, "midiserv") {
-                    self.conn = Some(conn_out);
-                }
-            }
+        if let Some(p) = self.ports.get(out_port) {
+            self.conn = Some(
+                MidiOutput::new("midiserve")
+                    .unwrap()
+                    .connect(&p.port, "midiserv")
+                    .unwrap(),
+            );
         }
     }
 

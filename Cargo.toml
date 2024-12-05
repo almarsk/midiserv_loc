@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.93"
+clipboard = "0.5.0"
+flume = "0.11.1"
 midir = "0.10.1"
 serde = "1.0.215"
 serde_json = "1.0.133"
