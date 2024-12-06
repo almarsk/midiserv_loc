@@ -4,18 +4,21 @@ mod exposed_devices;
 mod midi;
 
 use anyhow::Result;
+use clipboard::ClipboardContext;
+use clipboard::ClipboardProvider;
 use exposed_devices::Device;
 use exposed_devices::DeviceCommand;
 use flume::bounded;
 use flume::Receiver;
 use flume::Sender;
 use midi::MidiCommand;
+use slint::CloseRequestResponse;
 use slint::ComponentHandle;
 use slint::{ModelRc, SharedString, VecModel};
 use std::error::Error;
 use std::rc::Rc;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::Mutex;
 
 slint::include_modules!();
 
@@ -39,7 +42,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let exp_dev = Rc::new(VecModel::from(vec![]));
     app.set_exposed_devices(ModelRc::from(Rc::clone(&exp_dev)));
 
-    let (device_command_tx, mut device_command_rx) = mpsc::channel::<DeviceCommand>(10);
+    let (device_command_tx, device_command_rx): (Sender<DeviceCommand>, Receiver<DeviceCommand>) =
+        bounded(10);
+
     let (device_response_tx, device_response_rx): (Sender<Vec<String>>, Receiver<Vec<String>>) =
         bounded(10);
 
@@ -50,8 +55,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let exposed = Arc::clone(&exposed);
         loop {
             tokio::select! {
-                exposed_device_command = device_command_rx.recv() => {
-                    if let Some(e) = exposed_device_command {
+                exposed_device_command = device_command_rx.recv_async() => {
+                    if let Ok(e) = exposed_device_command {
                         match e {
                             DeviceCommand::Push(d) => exposed.lock().await.push(d),
                             DeviceCommand::Remove(index) => exposed.lock().await.remove(index),
@@ -78,7 +83,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let (midi_tx, mut midi_rx) = mpsc::channel::<MidiCommand>(10);
+    let (midi_tx, midi_rx): (Sender<MidiCommand>, Receiver<MidiCommand>) = bounded(10);
 
     let shutdown_rx_clone = shutdown_rx.clone();
     rt.spawn(async move {
@@ -86,8 +91,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let midi = Arc::clone(&midi);
         loop {
             tokio::select! {
-                command_option = midi_rx.recv() => {
-                 if let Some(command) = command_option {
+                command_option = midi_rx.recv_async() => {
+                 if let Ok(command) = command_option {
                      let mut midi = midi.lock().await;
                      match command {
                          MidiCommand::Dummy(cc) => {
@@ -110,26 +115,26 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let tx_clone = midi_tx.clone();
     app.global::<AppState>().on_choose_midi_port(move |port| {
-        let tx_clone_clone = tx_clone.clone();
-        let _ = slint::spawn_local(async move {
-            let _ = tx_clone_clone.send(MidiCommand::Port(port as usize)).await;
-        });
+        let _ = tx_clone.send(MidiCommand::Port(port as usize));
     });
 
     let tx_clone = midi_tx.clone();
     app.global::<AppState>()
         .on_send_dummy_cc(move |controller| {
-            let tx_clone_clone = tx_clone.clone();
-            let _ = slint::spawn_local(async move {
-                if let Ok(cc) = controller.clone().parse::<u8>() {
-                    let _ = tx_clone_clone.send(MidiCommand::Dummy(cc)).await;
-                }
-            });
+            controller
+                .clone()
+                .parse::<u8>()
+                .ok()
+                .and_then(|cc| tx_clone.send(MidiCommand::Dummy(cc)).ok());
         });
 
-    let tx_clone = device_command_tx.clone();
-    let rx_clone = device_response_rx.clone();
-    let exp_dev_clone = Rc::clone(&exp_dev);
+    let state = Rc::new(ExposedState {
+        tx: device_command_tx.clone(),
+        rx: device_response_rx.clone(),
+        exp_dev,
+    });
+
+    let state_clone = state.clone();
     app.global::<AppState>()
         .on_expose_device(move |cc, ui_type, description| {
             if let Some(new_device) = Device::from_string_args(
@@ -137,71 +142,92 @@ fn main() -> Result<(), Box<dyn Error>> {
                 ui_type.to_string(),
                 description.to_string(),
             ) {
-                let tx_clone = tx_clone.clone();
-                let rx_clone = rx_clone.clone();
-                let exp_dev_clone = exp_dev_clone.clone();
+                let state_clone = state_clone.clone();
                 let _ = slint::spawn_local(async move {
-                    let _ = tx_clone.send(DeviceCommand::Push(new_device)).await;
+                    let _ = state_clone.tx.send(DeviceCommand::Push(new_device));
 
-                    let _ = tx_clone.send(DeviceCommand::GetJoined).await;
-                    exp_dev_clone.set_vec(
-                        rx_clone
-                            .recv_async()
-                            .await
-                            .map(|v| v.iter().map(|s| SharedString::from(s)).collect())
-                            .unwrap_or(vec![]),
-                    )
+                    update_exp_dev(state_clone.to_owned());
                 });
             }
         });
 
-    let tx_clone = device_command_tx.clone();
-    let rx_clone = device_response_rx.clone();
-    let exp_dev_clone = Rc::clone(&exp_dev);
+    let state_clone = state.clone();
     app.global::<AppState>().on_hide_device(move |i| {
         if let Ok(index) = i.parse::<usize>() {
-            let tx_clone = tx_clone.clone();
-            let rx_clone = rx_clone.clone();
-            let exp_dev_clone = exp_dev_clone.clone();
-            let _ = slint::spawn_local(async move {
-                let _ = tx_clone.send(DeviceCommand::Remove(index)).await;
-
-                let _ = tx_clone.send(DeviceCommand::GetJoined).await;
-                exp_dev_clone.set_vec(
-                    rx_clone
-                        .recv_async()
-                        .await
-                        .map(|v| v.iter().map(|s| SharedString::from(s)).collect())
-                        .unwrap_or(vec![]),
-                )
-            });
+            let _ = state_clone.tx.send(DeviceCommand::Remove(index));
+            update_exp_dev(state_clone.to_owned());
         }
     });
 
-    let tx_clone = device_command_tx.clone();
+    let state_clone = state.clone();
     app.global::<AppState>().on_copy_to_clipboard(move || {
-        let tx_clone = tx_clone.clone();
-        let _ = slint::spawn_local(async move {
-            let _ = tx_clone.send(DeviceCommand::CopyToClipBoard).await;
-        });
+        let _ = state_clone.tx.send(DeviceCommand::CopyToClipBoard);
     });
 
-    let tx_clone = device_command_tx.clone();
-    let exp_dev_clone = exp_dev.clone();
+    let state_clone = state.clone();
+    app.global::<AppState>().on_paste(move || {
+        if let Ok(ctx) = ClipboardProvider::new() {
+            let mut ctx: ClipboardContext = ctx;
+            if let Ok(content) = ctx.get_contents() {
+                let mut rdr = csv::ReaderBuilder::new()
+                    .has_headers(false)
+                    .from_reader(content.as_bytes());
+
+                for result in rdr.records() {
+                    if let Ok(record) = result {
+                        if let (Some(cc), Some(ui_type), Some(desc)) =
+                            (record.get(0), record.get(1), record.get(2))
+                        {
+                            if let Some(new_device) = Device::from_string_args(
+                                cc.to_string(),
+                                ui_type.to_string(),
+                                desc.to_string(),
+                            ) {
+                                let _ = state_clone.tx.send(DeviceCommand::Push(new_device));
+                            }
+                        }
+                    }
+                }
+                update_exp_dev(state_clone.clone());
+            }
+        }
+    });
+
+    let state_clone = state.clone();
     app.global::<AppState>().on_clear_all(move || {
-        let tx_clone = tx_clone.clone();
-        let exp_dev_clone = exp_dev_clone.clone();
-        let _ = slint::spawn_local(async move {
-            let _ = tx_clone.send(DeviceCommand::Clear);
-            exp_dev_clone.set_vec(vec![])
-        });
+        let _ = state_clone.tx.send(DeviceCommand::Clear);
+        update_exp_dev(state_clone.to_owned());
+    });
+
+    app.window().on_close_requested(move || {
+        let _ = shutdown_tx.send(true);
+        CloseRequestResponse::HideWindow
     });
 
     let _ = app.run();
-    let _ = shutdown_tx.send(true);
 
     rt.block_on(async {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     });
     Ok(())
+}
+
+struct ExposedState {
+    tx: Sender<DeviceCommand>,
+    rx: Receiver<Vec<String>>,
+    exp_dev: Rc<VecModel<SharedString>>,
+}
+
+fn update_exp_dev(state: Rc<ExposedState>) {
+    let _ = slint::spawn_local(async move {
+        let _ = state.tx.send(DeviceCommand::GetJoined);
+        state.exp_dev.set_vec(
+            state
+                .rx
+                .recv_async()
+                .await
+                .map(|v| v.iter().map(|s| SharedString::from(s)).collect())
+                .unwrap_or(vec![]),
+        )
+    });
 }

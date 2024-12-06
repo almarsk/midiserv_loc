@@ -50,15 +50,11 @@ impl Device {
     }
 
     pub fn from_string_args(cc: String, ui_type: String, description: String) -> Option<Self> {
-        if let Ok(controller) = cc.parse::<u8>() {
-            if let Ok(ui_type) = UIType::from_str(ui_type.as_str()) {
-                Some(Device::new(controller, ui_type, description))
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        cc.parse::<u8>().ok().and_then(|controller| {
+            UIType::from_str(ui_type.as_str())
+                .ok()
+                .and_then(|ui_type| Some(Device::new(controller, ui_type, description)))
+        })
     }
 }
 
@@ -92,7 +88,7 @@ impl ExposedDevices {
             .iter()
             .map(|d| d.clone())
             .fold(String::new(), |acc, d| {
-                format!("{}\n{};{};{}", acc, d.cc, d.ui_type, d.description)
+                format!("{}\n{},{},{}", acc, d.cc, d.ui_type, d.description)
             })
     }
 
@@ -114,9 +110,10 @@ impl ExposedDevices {
     }
 
     pub fn copy_to_clipboard(&self) {
-        if let Ok(ctx) = ClipboardProvider::new() {
-            let mut ctx: ClipboardContext = ctx;
-            let _ = ctx.set_contents(self.get_joined_string().to_owned());
-        }
+        ClipboardProvider::new()
+            .ok()
+            .and_then(|mut ctx: ClipboardContext| {
+                ctx.set_contents(self.get_joined_string().to_owned()).ok()
+            });
     }
 }

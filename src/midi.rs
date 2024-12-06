@@ -28,20 +28,23 @@ impl Port {
 
 impl Midi {
     pub fn new() -> Self {
-        let midi_output = MidiOutput::new("midiserve").unwrap();
-        let ports = midi_output
-            .ports()
-            .into_iter()
-            .map(|p| {
-                Port::new(
-                    p.id().clone(),
-                    midi_output.port_name(&p).unwrap_or("".to_string()),
-                    p,
-                )
+        MidiOutput::new("midiserve")
+            .ok()
+            .map(|midi_output| Midi {
+                conn: None,
+                ports: midi_output
+                    .ports()
+                    .into_iter()
+                    .map(|p| {
+                        Port::new(
+                            p.id().clone(),
+                            midi_output.port_name(&p).unwrap_or_else(|_| "".to_string()),
+                            p,
+                        )
+                    })
+                    .collect(),
             })
-            .collect();
-
-        Midi { conn: None, ports }
+            .unwrap_or_else(|| panic!())
     }
 
     pub fn get_ports(&mut self) -> Vec<String> {
@@ -52,19 +55,16 @@ impl Midi {
     }
 
     pub fn update_port(&mut self, out_port: usize) {
-        if let Some(p) = self.ports.get(out_port) {
-            self.conn = Some(
-                MidiOutput::new("midiserve")
-                    .unwrap()
-                    .connect(&p.port, "midiserv")
-                    .unwrap(),
-            );
-        }
+        self.conn = self.ports.get(out_port).and_then(|p| {
+            MidiOutput::new("midiserve")
+                .ok()
+                .and_then(|m| m.connect(&p.port, "midiserv").ok())
+        });
     }
 
     pub fn send_cc(&mut self, controller: u8, value: u8) {
-        if let Some(c) = self.conn.as_mut() {
-            let _ = c.send(&[CC_MESSAGE, controller, value]);
-        }
+        self.conn
+            .as_mut()
+            .and_then(|c| c.send(&[CC_MESSAGE, controller, value]).ok());
     }
 }

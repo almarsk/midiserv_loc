@@ -1,5 +1,5 @@
 import "./ChivoMono-VariableFont_wght.ttf";
-import { Button, ComboBox } from "std-widgets.slint";
+import { Button, ComboBox, TextEdit } from "std-widgets.slint";
 import { MenuItem } from "./components/menu-item.slint";
 import { Switch, Status } from "./components/indicators.slint";
 import { SingleForm, ExposeForm, Submit } from "./components/forms.slint";
@@ -14,6 +14,8 @@ export global AppState {
     callback send_dummy_cc(string);
     callback copy_to_clipboard();
     callback clear_all();
+    callback disconnect();
+    callback paste();
     in property <[string]> midi-ports;
 }
 
@@ -76,9 +78,12 @@ export component AppWindow inherits Window {
                         height: root.height - 360px;
                         width: root.width/2;
                         for device[index] in exposed_devices :
-                            Submit {
-                                text: device;
-                                on-clicked => { AppState.hide_device(index) }
+                            HorizontalLayout {
+                                padding: 1px;
+                                Submit {
+                                    text: device;
+                                    on-clicked => { AppState.hide_device(index) }
+                                }
                             }
                     }
                 }
@@ -91,10 +96,9 @@ export component AppWindow inherits Window {
         HorizontalLayout {
             padding-top: 20px;
             spacing: 5px;
-            Submit{text: "load file";}
+            Submit{text: "paste"; on-clicked => {AppState.paste();}}
             Submit{text: "copy exposed"; on-clicked => {AppState.copy_to_clipboard()}}
             Submit{text: "clear all"; background: rgb(248,168,168); on-clicked => {AppState.clear_all()}}
-            Submit{text: "disconnect"; background: rgb(248,168,168);}
         }
     }
 }
