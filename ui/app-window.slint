@@ -22,6 +22,7 @@ export global AppState {
 export component AppWindow inherits Window {
     in property <[string]> exposed_devices;
     in-out property <brush> bgc: rgb(200,200,200);
+    property <int> default-padding: 10;
 
     title: "midiserv";
     background: root.bgc;
@@ -33,14 +34,14 @@ export component AppWindow inherits Window {
 
     VerticalLayout {
         alignment: start;
-        padding: 10px;
+        padding: default-padding * 1px;
         Text {
             text: "midiserv";
             font-size: 30px;
             color:black;
         }
         VerticalLayout {
-            padding-top: 20px;
+            padding-top: 30px;
             spacing: 10px;
 
             MenuItem{text: "connection status"; Status{}}
@@ -70,8 +71,19 @@ export component AppWindow inherits Window {
                 }
             }
 
+            HorizontalLayout{
+                property <int> color: 165;
+                alignment: center;
+                Path {
+                    width: parent.width * 0.85;
+                    commands: "M 0 0 H 100";
+                    stroke: rgb(color,color,color);
+                    stroke-width: 1px;
+                }
+            }
+
             currently-exposed := VerticalLayout {
-                MenuItem {text: "currently exposed"; Rectangle{} }
+                Text {text: "currently exposed";  horizontal-alignment: center;}
                 HorizontalLayout {
                     alignment: center;
                     ListView {
@@ -92,13 +104,13 @@ export component AppWindow inherits Window {
     }
     VerticalLayout {
     alignment: end;
-    padding: 10px;
+        padding: default-padding * 1px;
         HorizontalLayout {
             padding-top: 20px;
             spacing: 5px;
-            Submit{text: "paste"; on-clicked => {AppState.paste();}}
-            Submit{text: "copy exposed"; on-clicked => {AppState.copy_to_clipboard()}}
-            Submit{text: "clear all"; background: rgb(248,168,168); on-clicked => {AppState.clear_all()}}
+            Submit{text: "paste"; on-clicked => {AppState.paste();} width: (parent.width - default-padding * 1px)/3;}
+            Submit{text: "copy exposed"; on-clicked => {AppState.copy_to_clipboard()} width: (parent.width - default-padding * 1px)/3;}
+            Submit{text: "clear all"; background: rgb(248,168,168); on-clicked => {AppState.clear_all()} width: (parent.width - default-padding * 1px)/3;}
         }
     }
 }
