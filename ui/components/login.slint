@@ -1,0 +1,11 @@
+
+import { Button } from "std-widgets.slint";
+
+export component Login inherits VerticalLayout {
+    callback connect-attempt(string, string);
+
+    Button {
+        text: "login";
+        clicked => {connect-attempt("ok","lol")}
+    }
+}

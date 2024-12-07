@@ -199,11 +199,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         update_exp_dev(state_clone.to_owned());
     });
 
+    let app_clone = app.clone_strong();
+    app.global::<AppState>().on_login(move |url, pass| {
+        println!("{} {}", url, pass);
+        app_clone.global::<AppState>().set_connected_to_server(true);
+    });
+
+    let app_clone = app.clone_strong();
+    app.global::<AppState>().on_disconnect(move || {
+        app_clone
+            .global::<AppState>()
+            .set_connected_to_server(false);
+    });
+
     app.window().on_close_requested(move || {
         let _ = shutdown_tx.send(true);
         CloseRequestResponse::HideWindow
     });
-
     let _ = app.run();
 
     rt.block_on(async {
